@@ -1,4 +1,4 @@
-import {main, test} from './main';
+import {main} from './main';
 import {setTrigger} from './util';
 
 declare const global: {
@@ -6,5 +6,4 @@ declare const global: {
 };
 
 global.main = main;
-global.test = test;
 global.setTrigger = setTrigger;
