@@ -84,8 +84,8 @@ export const main = () => {
   }
   const target = events.find(
     e =>
-      date.isAfter(dayjs(e.getStartTime().getDate())) &&
-      date.isBefore(dayjs(e.getEndTime().getDate()))
+      date.isAfter(e.getStartTime().getDate()) &&
+      date.isBefore(e.getEndTime().getDate())
   );
   const status = target ? createStatusBody(target) : default_status;
   postSlackStatus(status);
