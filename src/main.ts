@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import URLFetchRequestOptions = GoogleAppsScript.URL_Fetch.URLFetchRequestOptions;
-import CalendarEvent = GoogleAppsScript.Calendar.CalendarEvent;
+import CalendarEvent = GoogleAppsScript.Calendar.Schema.Event;
 
 type SlackStatus = {
   profile: {
@@ -21,12 +21,11 @@ const default_status: SlackStatus = {
 };
 const createStatusBody = (event: CalendarEvent): SlackStatus => {
   // 整形した開始時刻・終了時刻
-  const start = dayjs(event.getStartTime().getDate()).format('HH:mm');
-  const end = dayjs(event.getEndTime().getDate()).format('HH:mm');
+  const end = dayjs(event.end?.dateTime).format('HH:mm');
   // ステータステキスト
-  const text = `${event.getTitle()} (${start}〜${end})`;
+  const text = `${event.summary} ${end}まで`;
 
-  const isMTG = event.getGuestList().length > 0;
+  const isMTG = (event.attendees || []).length > 1;
   if (isMTG) {
     return {
       profile: {
@@ -36,7 +35,7 @@ const createStatusBody = (event: CalendarEvent): SlackStatus => {
     };
   }
 
-  const isVacation = event.getTitle().includes('休暇');
+  const isVacation = event.eventType === 'outOfOffice';
   if (isVacation) {
     return {
       profile: {
@@ -62,31 +61,32 @@ const postSlackStatus = (status: SlackStatus) => {
   };
   const res = UrlFetchApp.fetch(URL, option);
   if (JSON.parse(res.getContentText()).ok) {
-    console.log('success');
+    console.log('success', status.profile);
     return;
   }
   console.log('failed');
   console.log(
-    `debug: ${res.getResponseCode()} ${res.getContentText()} ${JSON.stringify(
-      status
-    )}`
+    `debug: ${res.getResponseCode()} ${res.getContentText()} ${status}`
   );
 };
 
 export const main = () => {
-  const date = dayjs();
-  const events = CalendarApp.getCalendarById(GCAL_ID).getEventsForDay(
-    date.toDate()
-  );
-
-  if (events.length === 0) {
-    return;
-  }
-  const target = events.find(
-    e =>
-      date.isAfter(e.getStartTime().getDate()) &&
-      date.isBefore(e.getEndTime().getDate())
-  );
+  const now = dayjs();
+  const e = Calendar.Events?.list(GCAL_ID, {
+    timeMin: now.startOf('d').toISOString(),
+    timeMax: now.add(1, 'day').startOf('d').toISOString(),
+    timeZone: 'JST',
+    singleEvents: true,
+    orderBy: 'startTime',
+  });
+  const target = e?.items?.find(item => {
+    const start = item.start?.dateTime;
+    const end = item.end?.dateTime;
+    if (!start || !end) {
+      return false;
+    }
+    return now.isAfter(start) && now.isBefore(end);
+  });
   const status = target ? createStatusBody(target) : default_status;
   postSlackStatus(status);
 };
