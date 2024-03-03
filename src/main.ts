@@ -35,8 +35,8 @@ const createStatusBody = (event: CalendarEvent): SlackStatus => {
     };
   }
 
-  const isVacation = event.eventType === 'outOfOffice';
-  if (isVacation) {
+  const isOutOfOffice = event.eventType === 'outOfOffice';
+  if (isOutOfOffice) {
     return {
       profile: {
         status_text: text,
